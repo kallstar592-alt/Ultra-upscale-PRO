@@ -33,3 +33,8 @@ The 16K/32K controls are experimental processing-target settings, not guaranteed
 
 ## Security note
 The application uses Electron with context isolation, no Node integration in the UI, sandboxed rendering and a narrow preload bridge. Ads are blocked by a short domain list; review that list before relying on it as a privacy or security product.
+
+
+## Crimson Ruby theme
+
+The mobile and desktop variants share a black/crimson visual theme, chained ruby app icon, soft red splatter accents, and a slow-moving multicolor liquid backdrop behind desktop tabs. The desktop tab animation respects `prefers-reduced-motion` and stays behind readable tab labels.
