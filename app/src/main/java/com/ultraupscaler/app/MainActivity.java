@@ -6,7 +6,14 @@ import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorFilter;
+import android.graphics.Paint;
+import android.graphics.PixelFormat;
+import android.graphics.RadialGradient;
+import android.graphics.Rect;
+import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.Bitmap;
 import android.graphics.drawable.GradientDrawable;
@@ -14,6 +21,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Message;
+import android.os.SystemClock;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -64,11 +72,11 @@ import java.util.Set;
 public class MainActivity extends Activity {
     private static final String PREFS = "ultra_upscaler_settings";
     private static final String HOME_URL = "https://duckduckgo.com";
-    private static final int BG = Color.rgb(17, 17, 27);
-    private static final int PANEL = Color.rgb(31, 31, 46);
-    private static final int ACCENT = Color.rgb(139, 92, 246);
+    private static final int BG = Color.rgb(7, 7, 11);
+    private static final int PANEL = Color.rgb(20, 16, 22);
+    private static final int ACCENT = Color.rgb(255, 38, 57);
     private static final int TEXT = Color.rgb(245, 245, 250);
-    private static final int MUTED = Color.rgb(176, 177, 195);
+    private static final int MUTED = Color.rgb(184, 163, 170);
 
     private LinearLayout root;
     private LinearLayout tabStrip;
@@ -94,6 +102,53 @@ public class MainActivity extends Activity {
         String title = "New Tab";
         String url = "about:blank";
         BrowserTab(int id) { this.id = id; }
+    }
+
+    /** Low-cost animated liquid-color background behind the tab strip. */
+    private static final class LiquidFlowDrawable extends android.graphics.drawable.Drawable implements Runnable {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private long startedAt = SystemClock.uptimeMillis();
+        private boolean running = true;
+
+        @Override public void draw(Canvas canvas) {
+            Rect bounds = getBounds();
+            canvas.drawColor(Color.rgb(7, 7, 11));
+            float w = bounds.width();
+            float h = bounds.height();
+            if (w <= 0 || h <= 0) return;
+            float t = (SystemClock.uptimeMillis() - startedAt) / 1000f;
+            drawBlob(canvas, bounds, .12f + .08f * (float)Math.sin(t * .55f), .42f + .18f * (float)Math.cos(t * .43f), w * .42f, Color.rgb(255, 20, 47));
+            drawBlob(canvas, bounds, .40f + .12f * (float)Math.sin(t * .38f + 1.5f), .22f + .19f * (float)Math.sin(t * .52f), w * .33f, Color.rgb(185, 35, 110));
+            drawBlob(canvas, bounds, .67f + .12f * (float)Math.cos(t * .46f), .56f + .17f * (float)Math.sin(t * .31f + 2f), w * .38f, Color.rgb(80, 42, 205));
+            drawBlob(canvas, bounds, .90f + .05f * (float)Math.sin(t * .37f + .6f), .33f + .16f * (float)Math.cos(t * .49f), w * .28f, Color.rgb(15, 135, 205));
+            if (running) scheduleSelf(this, SystemClock.uptimeMillis() + 55L);
+        }
+
+        private void drawBlob(Canvas canvas, Rect bounds, float nx, float ny, float radius, int rgb) {
+            float x = bounds.left + nx * bounds.width();
+            float y = bounds.top + ny * bounds.height();
+            int r = Color.red(rgb), g = Color.green(rgb), b = Color.blue(rgb);
+            paint.setShader(new RadialGradient(x, y, Math.max(1f, radius),
+                    new int[] { Color.argb(130, r, g, b), Color.argb(42, r, g, b), Color.TRANSPARENT },
+                    null, Shader.TileMode.CLAMP));
+            canvas.drawCircle(x, y, Math.max(1f, radius), paint);
+            paint.setShader(null);
+        }
+
+        @Override public void run() { invalidateSelf(); }
+        @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); invalidateSelf(); }
+        @Override public void setColorFilter(ColorFilter filter) { paint.setColorFilter(filter); invalidateSelf(); }
+        @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
+        @Override public boolean setVisible(boolean visible, boolean restart) {
+            running = visible;
+            if (visible) {
+                if (restart) startedAt = SystemClock.uptimeMillis();
+                scheduleSelf(this, SystemClock.uptimeMillis() + 55L);
+            } else {
+                unscheduleSelf(this);
+            }
+            return super.setVisible(visible, restart);
+        }
     }
 
     @Override
@@ -147,7 +202,7 @@ public class MainActivity extends Activity {
         tabsRow.setOrientation(LinearLayout.HORIZONTAL);
         tabsRow.setGravity(Gravity.CENTER_VERTICAL);
         tabsRow.setPadding(dp(5), dp(3), dp(5), dp(3));
-        tabsRow.setBackgroundColor(BG);
+        tabsRow.setBackground(new LiquidFlowDrawable());
 
         HorizontalScrollView tabsScroll = new HorizontalScrollView(this);
         tabsScroll.setHorizontalScrollBarEnabled(false);
@@ -191,7 +246,7 @@ public class MainActivity extends Activity {
         addressBar.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         addressBar.setImeOptions(EditorInfo.IME_ACTION_GO);
         addressBar.setSelectAllOnFocus(true);
-        addressBar.setBackground(roundDrawable(Color.rgb(45, 45, 64), dp(13)));
+        addressBar.setBackground(roundDrawable(Color.rgb(36, 18, 24), dp(13)));
         navRow.addView(addressBar, new LinearLayout.LayoutParams(0, dp(39), 1f));
 
         Button goButton = makeButton("Go", true);
@@ -357,7 +412,11 @@ public class MainActivity extends Activity {
             chip.setGravity(Gravity.CENTER_VERTICAL);
             chip.setOrientation(LinearLayout.HORIZONTAL);
             chip.setPadding(dp(6), 0, dp(3), 0);
-            chip.setBackground(roundDrawable(tab == activeTab ? ACCENT : PANEL, dp(10)));
+            GradientDrawable chipBackground = roundDrawable(
+                    tab == activeTab ? Color.argb(225, 73, 8, 20) : Color.argb(208, 15, 13, 19), dp(10));
+            chipBackground.setStroke(dp(1), tab == activeTab
+                    ? Color.rgb(255, 44, 64) : Color.argb(72, 255, 78, 92));
+            chip.setBackground(chipBackground);
             LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(dp(142), dp(36));
             chipParams.setMargins(dp(2), dp(2), dp(3), dp(2));
             TextView title = new TextView(this);
