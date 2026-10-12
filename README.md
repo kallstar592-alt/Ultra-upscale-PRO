@@ -1,32 +1,32 @@
-# Ultra Upscaler — enhanced Android source project
+# Ultra-upscale-PRO — Enhanced Android Browser
 
-This is an editable Android Studio/Gradle project prepared from the APK supplied in chat. The uploaded ZIP contained only `app-debug.apk` (compiled bytecode and assets), not the original GitHub repository or its original source files. As a result, this is a reconstructed project using the visible enhancement script and a new Android WebView browser shell; it is not a byte-for-byte restoration of the original source project.
+This is an editable Android Studio project reconstructed from the compiled APK supplied for this task. The source ZIP did not include the original app source, so this project is a new native WebView browser shell plus a video-rendering enhancement script, not a byte-for-byte restoration of the original app.
 
-## Features in this project
+## Features
 
-- **Real tab bar:** each tab is a separate WebView with independent navigation history, URL/search bar, back/forward/reload, close-tab controls, and a new-tab button.
-- **Open links in new tabs:** user-initiated `target="_blank"` / `window.open()` popups are handled as tabs. Popups without a user gesture are rejected to reduce ad-created tabs.
-- **Enhance panel:** controls for video enhancement, 4K, 5K, 8K, 10K, experimental 16K/32K targets, smart edge enhancement, YouTube source-quality preference, adaptive load reduction, and sharpness.
-- **GPU safety caps:** the requested 16K/32K targets are capped to the WebGL renderbuffer/texture/viewport and a conservative pixel budget. Actual rendered dimensions are sent to the status line. These settings do not turn a site's source stream into native 16K/32K video or reconstruct missing detail.
-- **Built-in ad blocking:** network interception blocks a bundled list of common advertising/tracking domains, and an injected stylesheet hides some common ad containers. This is a lightweight built-in blocker, not a full EasyList/uBlock Origin filter engine; some ads may remain and filters can occasionally block embedded ad-supported content.
-- **Video fullscreen support** and media autoplay configuration for web videos.
+- **Browser-style tabs:** open, switch between, and close tabs. Each tab has its own WebView and navigation history. User-initiated pop-up windows can open as tabs.
+- **Enhance panel:** enable or disable video enhancement, adjust sharpness, and choose 4K, 8K, experimental 16K, or experimental 32K render targets.
+- **Adaptive video rendering:** WebGL renderer checks hardware limits and a conservative pixel budget before sizing its canvas.
+- **Basic ad blocking:** blocks requests matching a list of common advertising/tracking domains and hides common ad containers.
+- **Browser navigation:** address/search bar, back, forward, reload, and external app hand-off for non-web links.
 
-## Build in Android Studio
+## Build
 
-1. Install Android Studio with a JDK 17 and Android SDK Platform 35.
-2. Open this folder (`UltraUpscaler_Enhanced`) as an existing project.
-3. Let Gradle sync, then select **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
-4. The output APK is normally under `app/build/outputs/apk/debug/`.
+1. Install [Android Studio](https://developer.android.com/studio), JDK 17, and Android SDK Platform 35.
+2. Clone or download this repository and open the repository folder in Android Studio.
+3. Allow Gradle sync and install any requested SDK components.
+4. Select **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
+5. If the build succeeds, the debug APK is normally under `app/build/outputs/apk/debug/app-debug.apk`.
 
-The source targets Android 6.0+ (API 23) and compile SDK 35. This environment did not include the Android SDK/Gradle build toolchain, so an APK could not be built or runtime-tested here. The JavaScript enhancement assets and manifest were checked, but device testing is still required.
+This environment does not have the Android SDK/Gradle build toolchain, so I could not compile or runtime-test the APK. Build and test on a device before relying on it.
 
-## GitHub
+## Important limits
 
-Upload the contents of this folder to the repository as source. Do not upload only the generated APK if you want to edit the features again. If you already have a GitHub repository with original source, compare/merge `MainActivity.java`, `inject.js`, `adblock.js`, the manifest, and Gradle configuration with that repository rather than replacing unrelated project files.
+A 16K/32K setting is a best-effort render target, not a promise of native 16K/32K source video or playback. The renderer is capped by GPU, WebView, memory, viewport, and pixel-budget limits, and it cannot invent detail missing from the source. Video sites can also restrict playback or behavior inside WebView. The ad blocker is intentionally lightweight, not a full EasyList/uBlock filter engine, so some ads may remain and some ad-supported embeds may be affected.
 
-## Main files
+## Main source files
 
-- `app/src/main/java/com/ultraupscaler/app/MainActivity.java` — tabs, browser UI, settings, ad-block interception and JS bridge.
-- `app/src/main/assets/inject.js` — video upscaling and enhancement renderer, including 16K/32K best-effort targets with hardware/memory limits.
+- `app/src/main/java/com/ultraupscaler/app/MainActivity.java` — browser UI, tabs, navigation, Enhance settings, network filtering, and JS bridge.
+- `app/src/main/assets/inject.js` — WebGL video rendering and resolution target caps.
 - `app/src/main/assets/adblock.js` — cosmetic ad-element hiding.
-- `app/src/main/AndroidManifest.xml` — Android entry point and Internet permission.
+- `app/src/main/AndroidManifest.xml` — app entry point and permissions.
