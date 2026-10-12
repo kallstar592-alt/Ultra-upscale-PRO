@@ -1,0 +1,62 @@
+{
+  "name": "ultra-upscale-pro-desktop",
+  "version": "1.0.0",
+  "description": "Ultra Upscaler PRO Windows desktop browser with tabs, video enhancement controls and ad blocking",
+  "main": "main.cjs",
+  "author": "Ultra Upscaler PRO",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "npm run make-icon && electron-builder --win",
+    "make-icon": "node build-icon.cjs"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "^26.0.12",
+    "sharp": "^0.34.3",
+    "png-to-ico": "^2.1.8"
+  },
+  "build": {
+    "appId": "com.ultraupscaler.pro.desktop",
+    "productName": "Ultra Upscaler PRO",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "index.html",
+      "renderer.js",
+      "styles.css",
+      "page-scripts.js",
+      "icon.svg"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "portable": {
+      "artifactName": "Ultra-Upscaler-PRO-Portable-${version}.${ext}"
+    }
+  }
+}

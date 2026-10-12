@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src 'self';">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ultra Upscaler PRO</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-frame">
+    <header class="top-area">
+      <div class="tab-row">
+        <img class="brand-mark" src="icon.svg" alt="Ultra Upscaler PRO">
+        <div id="tabStrip" class="tab-strip" role="tablist" aria-label="Browser tabs"></div>
+        <button id="newTabButton" class="icon-button new-tab" title="New tab (Ctrl+T)" aria-label="New tab">+</button>
+        <button id="settingsButton" class="enhance-top-button" title="Video enhancement options"><span class="sparkle">✦</span> Enhance</button>
+      </div>
+      <div class="navigation-row">
+        <button id="backButton" class="nav-button" title="Back" aria-label="Back">‹</button>
+        <button id="forwardButton" class="nav-button" title="Forward" aria-label="Forward">›</button>
+        <button id="reloadButton" class="nav-button" title="Reload (Ctrl+R)" aria-label="Reload">↻</button>
+        <button id="homeButton" class="nav-button" title="Home" aria-label="Home">⌂</button>
+        <form id="addressForm" class="address-form">
+          <span class="address-lock">◈</span>
+          <input id="addressInput" type="text" spellcheck="false" autocomplete="off" placeholder="Search or enter a URL" aria-label="Search or enter a URL">
+          <button type="submit" class="go-button" aria-label="Go">↵</button>
+        </form>
+        <button id="adBlockButton" class="privacy-pill" title="Toggle ad blocker"><span class="privacy-dot"></span><span id="adBlockLabel">Ad block on</span></button>
+      </div>
+    </header>
+
+    <main id="viewStage" class="view-stage">
+      <section id="homeScreen" class="home-screen">
+        <div class="home-orb orb-one"></div><div class="home-orb orb-two"></div>
+        <div class="home-content">
+          <img class="hero-logo" src="icon.svg" alt="" aria-hidden="true">
+          <div class="eyebrow">YOUR DESKTOP BROWSER</div>
+          <h1>Ultra Upscaler <span>PRO</span></h1>
+          <p class="hero-subtitle">Browse freely. Tune your video picture. Keep distractions down.</p>
+          <form id="homeSearchForm" class="home-search">
+            <span class="search-symbol">⌕</span>
+            <input id="homeSearchInput" type="text" autocomplete="off" spellcheck="false" placeholder="Search the web or enter a website">
+            <button type="submit" aria-label="Search">→</button>
+          </form>
+          <div class="feature-grid">
+            <article class="feature-card"><div class="feature-icon purple">▤</div><h3>Multiple tabs</h3><p>Keep separate pages open and switch between them instantly.</p></article>
+            <article class="feature-card"><div class="feature-icon blue">✦</div><h3>Video Enhance</h3><p>Adjust picture sharpness and try experimental high-resolution targets.</p></article>
+            <article class="feature-card"><div class="feature-icon green">◈</div><h3>Ad blocker</h3><p>Block requests to common ad and tracking domains.</p></article>
+          </div>
+          <div class="home-footnote">16K / 32K are experimental targets, not guaranteed native video-stream resolutions.</div>
+        </div>
+      </section>
+      <div id="loadingBar" class="loading-bar"></div>
+    </main>
+
+    <aside id="enhancePanel" class="enhance-panel" aria-hidden="true">
+      <div class="panel-header">
+        <div><div class="panel-kicker">PICTURE CONTROLS</div><h2><span class="sparkle">✦</span> Enhance video</h2></div>
+        <button id="closePanelButton" class="icon-button" aria-label="Close Enhance panel">×</button>
+      </div>
+      <label class="setting-row"><span><strong>Video enhancement</strong><small>Apply display filters to detected video</small></span><input id="enhanceEnabled" type="checkbox" checked></label>
+      <div class="setting-block">
+        <label for="targetSelect">Processing target</label>
+        <select id="targetSelect">
+          <option value="4k">4K · Standard</option>
+          <option value="5k">5K · High</option>
+          <option value="8k">8K UHD · Very high</option>
+          <option value="10k">10K · Experimental</option>
+          <option value="16k">16K target · Experimental</option>
+          <option value="32k">32K target · Experimental</option>
+        </select>
+        <p class="setting-note">The target is a processing ceiling/goal, not a change to the website's source stream. Actual output depends on the source video, Chromium, GPU and available memory.</p>
+      </div>
+      <div class="setting-block">
+        <div class="range-title"><label for="sharpnessRange">Picture crispness</label><span id="sharpnessValue">35%</span></div>
+        <input id="sharpnessRange" type="range" min="0" max="100" value="35">
+        <div class="range-ends"><span>Natural</span><span>Sharper</span></div>
+      </div>
+      <label class="setting-row"><span><strong>Smart edge enhancement</strong><small>Experimental unsharp filter</small></span><input id="smartEnhance" type="checkbox"></label>
+      <label class="setting-row"><span><strong>Adaptive performance</strong><small>Reduce filter load if frames drop</small></span><input id="adaptiveMode" type="checkbox" checked></label>
+      <div class="panel-divider"></div>
+      <label class="setting-row"><span><strong>Block ads and trackers</strong><small>Network and page-element filtering</small></span><input id="panelAdBlock" type="checkbox" checked></label>
+      <div class="panel-status"><span class="status-dot"></span><div><strong id="enhanceStatus">Settings ready</strong><small id="targetStatus">4K target selected</small></div></div>
+      <div class="panel-caution">Note: this version enhances the displayed picture; it does not export or transcode videos into a new 16K/32K file. Some websites restrict video processing and some ads may remain.</div>
+    </aside>
+    <div id="panelScrim" class="panel-scrim"></div>
+    <footer class="status-bar"><span id="statusText">Ready</span><span id="versionText">Ultra Upscaler PRO · Desktop</span></footer>
+  </div>
+  <script src="page-scripts.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
