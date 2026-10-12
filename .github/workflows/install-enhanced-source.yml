@@ -4,7 +4,7 @@ on:
     branches:
       - feature/enhanced-browser-tabs-16k-32k-adblock
     paths:
-      - staging/UltraUpscaler_Enhanced_Source.zip
+      - staging/source.ready
 permissions:
   contents: write
 jobs:
@@ -20,8 +20,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cat staging/source.part*.b64 | base64 --decode > /tmp/UltraUpscaler_Enhanced_Source.zip
           mkdir -p /tmp/ultra-source
-          unzip -q staging/UltraUpscaler_Enhanced_Source.zip -d /tmp/ultra-source
+          unzip -q /tmp/UltraUpscaler_Enhanced_Source.zip -d /tmp/ultra-source
           test -f /tmp/ultra-source/UltraUpscaler_Enhanced/settings.gradle
           cp -a /tmp/ultra-source/UltraUpscaler_Enhanced/. .
           rm -rf staging
