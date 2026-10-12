@@ -1,32 +1,24 @@
-# Ultra Upscaler — enhanced Android source project
+# Ultra-upscale-PRO — Enhanced Android browser
 
-This is an editable Android Studio/Gradle project prepared from the APK supplied in chat. The uploaded ZIP contained only `app-debug.apk` (compiled bytecode and assets), not the original GitHub repository or its original source files. As a result, this is a reconstructed project using the visible enhancement script and a new Android WebView browser shell; it is not a byte-for-byte restoration of the original source project.
+This repository contains an editable Android Studio project. The source files were initially uploaded into the repository root; this branch organizes them into the Android Gradle layout so the project can be opened and built normally.
 
-## Features in this project
+## Features
 
-- **Real tab bar:** each tab is a separate WebView with independent navigation history, URL/search bar, back/forward/reload, close-tab controls, and a new-tab button.
-- **Open links in new tabs:** user-initiated `target="_blank"` / `window.open()` popups are handled as tabs. Popups without a user gesture are rejected to reduce ad-created tabs.
-- **Enhance panel:** controls for video enhancement, 4K, 5K, 8K, 10K, experimental 16K/32K targets, smart edge enhancement, YouTube source-quality preference, adaptive load reduction, and sharpness.
-- **GPU safety caps:** the requested 16K/32K targets are capped to the WebGL renderbuffer/texture/viewport and a conservative pixel budget. Actual rendered dimensions are sent to the status line. These settings do not turn a site's source stream into native 16K/32K video or reconstruct missing detail.
-- **Built-in ad blocking:** network interception blocks a bundled list of common advertising/tracking domains, and an injected stylesheet hides some common ad containers. This is a lightweight built-in blocker, not a full EasyList/uBlock Origin filter engine; some ads may remain and filters can occasionally block embedded ad-supported content.
-- **Video fullscreen support** and media autoplay configuration for web videos.
+- **Browser tabs:** create, switch between and close independent WebView tabs. User-initiated pop-up windows can open in new tabs.
+- **Enhance panel:** 4K, 5K, 8K UHD, 10K, experimental 16K and 32K render targets, smart edge enhancement, sharpness settings and adaptive load handling.
+- **Ad blocker:** request interception for a list of common ad/tracker domains plus cosmetic hiding of common ad containers. It is a lightweight blocker rather than a complete EasyList/uBlock Origin engine.
+- **Video display:** WebView video playback and full-screen handling.
 
-## Build in Android Studio
+## About 16K and 32K
 
-1. Install Android Studio with a JDK 17 and Android SDK Platform 35.
-2. Open this folder (`UltraUpscaler_Enhanced`) as an existing project.
-3. Let Gradle sync, then select **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
-4. The output APK is normally under `app/build/outputs/apk/debug/`.
+These are experimental upscaling/render targets, not guarantees of native 16K/32K source streams. The actual output is capped by WebGL texture/renderbuffer/viewport limits and a conservative pixel budget on mobile. Upscaling cannot recover source detail that was never present, and some websites restrict video access to WebGL.
 
-The source targets Android 6.0+ (API 23) and compile SDK 35. This environment did not include the Android SDK/Gradle build toolchain, so an APK could not be built or runtime-tested here. The JavaScript enhancement assets and manifest were checked, but device testing is still required.
+## Build the APK
 
-## GitHub
+1. Install [Android Studio](https://developer.android.com/studio), JDK 17 and Android SDK Platform 35.
+2. Open the repository's root folder in Android Studio.
+3. Let Gradle sync and install any SDK components requested.
+4. Choose **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
+5. The debug APK is normally created at `app/build/outputs/apk/debug/app-debug.apk`.
 
-Upload the contents of this folder to the repository as source. Do not upload only the generated APK if you want to edit the features again. If you already have a GitHub repository with original source, compare/merge `MainActivity.java`, `inject.js`, `adblock.js`, the manifest, and Gradle configuration with that repository rather than replacing unrelated project files.
-
-## Main files
-
-- `app/src/main/java/com/ultraupscaler/app/MainActivity.java` — tabs, browser UI, settings, ad-block interception and JS bridge.
-- `app/src/main/assets/inject.js` — video upscaling and enhancement renderer, including 16K/32K best-effort targets with hardware/memory limits.
-- `app/src/main/assets/adblock.js` — cosmetic ad-element hiding.
-- `app/src/main/AndroidManifest.xml` — Android entry point and Internet permission.
+A GitHub Actions workflow is included to attempt a debug build on pushes and pull requests. This project has not yet been compiled or device-tested in this environment, so wait for the workflow result and test on an Android device before release.
