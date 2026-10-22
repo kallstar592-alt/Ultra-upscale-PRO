@@ -18,8 +18,6 @@ const LEVELS = [
   { name: '4K', w: 3840, h: 2160 }
 ];
 // Pixel budgets prevent 16K/32K requests from allocating hundreds of MB on phones.
-const MAX_OUTPUT_PIXELS = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-  ? 8294400 : 16777216;
 const DEFAULTS = {
   enabled: true, target: '4k', sharpness: 35,
   brightness: 100, contrast: 100, saturation: 100,
