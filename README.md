@@ -5,8 +5,9 @@ This is an editable Android Studio project reconstructed from the compiled APK s
 ## Features
 
 - **Browser-style tabs:** open, switch between, and close tabs. Each tab has its own WebView and navigation history. User-initiated pop-up windows can open as tabs.
-- **Enhance panel:** enable or disable video enhancement, adjust sharpness, and choose 4K, 8K, experimental 16K, or experimental 32K render targets.
-- **Adaptive video rendering:** WebGL renderer checks hardware limits and a conservative pixel budget before sizing its canvas.
+- **Enhance panel:** enable or disable enhancement, adjust sharpness and edge-aware Smart Enhance strength, and choose 4K, 5K, 8K, 10K, experimental 16K, or experimental 32K targets.
+- **High-resolution mode:** optionally raises the render-buffer budget toward 8K-class (about 33 megapixels) on supported GPUs.
+- **Adaptive video rendering:** WebGL renderer checks separate GPU viewport dimensions and a pixel budget before sizing its canvas; the status reports actual buffer dimensions and cap reasons.
 - **Basic ad blocking:** blocks requests matching a list of common advertising/tracking domains and hides common ad containers.
 - **Browser navigation:** address/search bar, back, forward, reload, and external app hand-off for non-web links.
 
@@ -22,7 +23,7 @@ This environment does not have the Android SDK/Gradle build toolchain, so I coul
 
 ## Important limits
 
-A 16K/32K setting is a best-effort render target, not a promise of native 16K/32K source video or playback. The renderer is capped by GPU, WebView, memory, viewport, and pixel-budget limits, and it cannot invent detail missing from the source. Video sites can also restrict playback or behavior inside WebView. The ad blocker is intentionally lightweight, not a full EasyList/uBlock filter engine, so some ads may remain and some ad-supported embeds may be affected.
+A 16K/32K setting is a requested render target, not native 16K/32K source video. High-resolution mode raises the budget to about 33 million pixels (8K-class) where supported. A 16:9 16K frame is about 151 million pixels and 32K about 604 million pixels, requiring roughly 0.6 GB and 2.4 GB respectively for one uncompressed 4-byte RGBA buffer alone; attempting to force that on phones is unsafe. GPU/WebGL dimension limits and a memory-safety budget remain in effect, and the renderer now reports actual buffer dimensions and cap reasons. Upscaling and edge enhancement can smooth or sharpen pixels but cannot recover factual detail that is absent from the source. Cross-origin and DRM restrictions can prevent access to some frames; this app does not bypass those restrictions. The ad blocker is intentionally lightweight, not a full EasyList/uBlock filter engine, so some ads may remain and some ad-supported embeds may be affected.
 
 ## Main source files
 
