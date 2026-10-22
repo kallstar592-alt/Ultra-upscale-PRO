@@ -601,6 +601,7 @@ public class MainActivity extends Activity {
             json.put("saturation", prefs.getInt("saturation", 100));
             json.put("autoQuality", prefs.getBoolean("autoQuality", true));
             json.put("adaptive", prefs.getBoolean("adaptive", true));
+            json.put("highResolution", prefs.getBoolean("highResolution", false));
             json.put("smart", prefs.getBoolean("smart", false));
             json.put("smartStrength", prefs.getInt("smartStrength", 60));
         } catch (Exception ignored) { }
@@ -648,6 +649,21 @@ public class MainActivity extends Activity {
         smart.setChecked(prefs.getBoolean("smart", false));
         addControl(panel, smart);
 
+        TextView smartStrengthLabel = sectionLabel("Smart enhancement strength: " + prefs.getInt("smartStrength", 60) + "%");
+        panel.addView(smartStrengthLabel);
+        SeekBar smartStrength = new SeekBar(this);
+        smartStrength.setMax(100);
+        smartStrength.setProgress(prefs.getInt("smartStrength", 60));
+        smartStrength.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                smartStrengthLabel.setText("Smart enhancement strength: " + progress + "%");
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
+        });
+        panel.addView(smartStrength, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(45)));
+
         CheckBox autoQuality = new CheckBox(this);
         autoQuality.setText("Prefer highest available YouTube source quality");
         autoQuality.setTextColor(TEXT);
@@ -659,6 +675,19 @@ public class MainActivity extends Activity {
         adaptive.setTextColor(TEXT);
         adaptive.setChecked(prefs.getBoolean("adaptive", true));
         addControl(panel, adaptive);
+
+        CheckBox highResolution = new CheckBox(this);
+        highResolution.setText("Experimental high-resolution render budget");
+        highResolution.setTextColor(TEXT);
+        highResolution.setChecked(prefs.getBoolean("highResolution", false));
+        addControl(panel, highResolution);
+
+        TextView renderBudgetInfo = new TextView(this);
+        renderBudgetInfo.setText("Raises the render budget toward 8K-class buffers on supported GPUs. Uses substantially more memory and may reduce playback smoothness.");
+        renderBudgetInfo.setTextColor(MUTED);
+        renderBudgetInfo.setTextSize(12);
+        renderBudgetInfo.setPadding(dp(4), 0, dp(4), dp(6));
+        panel.addView(renderBudgetInfo);
 
         TextView sharpLabel = sectionLabel("Sharpness: " + prefs.getInt("sharpness", 35) + "%");
         panel.addView(sharpLabel);
@@ -696,7 +725,7 @@ public class MainActivity extends Activity {
         panel.addView(adInfo);
 
         TextView limitation = new TextView(this);
-        limitation.setText("Important: 16K and 32K are experimental upscale targets. The app does not make a website's source stream native 16K/32K or invent missing detail. GPU, memory, WebView and source-video limits can cap the actual render size; the status line reports the rendered dimensions.");
+        limitation.setText("Important: 16K/32K are requested targets, not guaranteed output sizes. High-resolution mode raises the pixel budget to about 33 million pixels (8K-class) when the GPU allows it. A 16:9 16K frame is about 151 million pixels and 32K is about 604 million pixels; one 4-byte RGBA buffer alone would use roughly 0.6 GB or 2.4 GB. The app therefore keeps hardware and memory safety caps instead of trying to bypass them. Upscaling can smooth and sharpen edges, but cannot recover factual detail absent from the encoded source. DRM and cross-origin restrictions may prevent access to some video frames.");
         limitation.setTextColor(MUTED);
         limitation.setTextSize(12);
         limitation.setPadding(dp(4), dp(4), dp(4), dp(4));
@@ -717,6 +746,8 @@ public class MainActivity extends Activity {
                     .putBoolean("smart", smart.isChecked())
                     .putBoolean("autoQuality", autoQuality.isChecked())
                     .putBoolean("adaptive", adaptive.isChecked())
+                    .putBoolean("highResolution", highResolution.isChecked())
+                    .putInt("smartStrength", smartStrength.getProgress())
                     .putInt("sharpness", sharp.getProgress())
                     .putBoolean("adBlockEnabled", adBlock.isChecked())
                     .apply();
