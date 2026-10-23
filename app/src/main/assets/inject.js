@@ -22,6 +22,7 @@ const DEFAULTS = {
   enabled: true, target: '4k', sharpness: 35,
   brightness: 100, contrast: 100, saturation: 100,
   autoQuality: true, adaptive: true, highResolution: false,
+  screenModeEnabled: false, screenTarget: '4k',
   smart: false, smartStrength: 60
 };
 
@@ -31,12 +32,37 @@ let current = null;
 const blocked = new WeakSet();
 let lastStatus = '';
 
-const targetIdx = () => ({ '32k': 0, '16k': 1, '10k': 2, '8k': 3, '5k': 4, '4k': 5 }[S.target] ?? 5);
+const targetIdx = () => {
+  const target = S.screenModeEnabled ? S.screenTarget : S.target;
+  return ({ '32k': 0, '16k': 1, '10k': 2, '8k': 3, '5k': 4, '4k': 5 }[target] ?? 5);
+};
 function status(t) {
   if (t !== lastStatus) {
     lastStatus = t;
     try { if (window.AndroidVQ) window.AndroidVQ.status(t); } catch (_) {}
   }
+}
+
+// Screen Boost adds a subtle page-wide clarity profile. The requested resolution target
+// applies to the video renderer only; webpage DOM and the Android display remain at their
+// normal device-controlled raster size.
+function applyScreenBoost() {
+  let style = document.getElementById('__vq-screen-boost-style');
+  if (!S.screenModeEnabled) {
+    if (style) style.remove();
+    return;
+  }
+  if (!style) {
+    style = document.createElement('style');
+    style.id = '__vq-screen-boost-style';
+    (document.head || document.documentElement).appendChild(style);
+  }
+  const factors = { '4k': 1.02, '5k': 1.025, '8k': 1.03, '10k': 1.035, '16k': 1.04 };
+  const factor = factors[S.screenTarget] || factors['4k'];
+  style.textContent =
+    'html { filter: contrast(' + factor + ') saturate(' + factor + ') !important; }' +
+    'html, body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }' +
+    'img, picture, svg, canvas, video { image-rendering: auto; }';
 }
 
 const VS = `
@@ -444,9 +470,14 @@ function forceQuality() {
 // Called from the native side whenever settings change.
 window.__vqSet = function (s) {
   const prevTarget = S.target, prevEnabled = S.enabled, prevHighResolution = S.highResolution;
+  const prevScreenMode = S.screenModeEnabled, prevScreenTarget = S.screenTarget;
   S = { ...DEFAULTS, ...s };
   if (S.target !== prevTarget || S.enabled !== prevEnabled ||
-      S.highResolution !== prevHighResolution) levelIdx = targetIdx();
+      S.highResolution !== prevHighResolution ||
+      S.screenModeEnabled !== prevScreenMode || S.screenTarget !== prevScreenTarget) {
+    levelIdx = targetIdx();
+  }
+  applyScreenBoost();
   tick();
 };
 
