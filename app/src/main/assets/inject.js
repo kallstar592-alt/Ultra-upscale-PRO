@@ -4,23 +4,25 @@
 if (window.__vqInstalled) { return; }
 window.__vqInstalled = true;
 
-// These are requested enhancement targets, not claims about the source stream.
-// 16K/32K targets are best-effort: WebGL and device memory limits cap the actual canvas.
+// Targets request a render-buffer size; they cannot enlarge a site's encoded stream.
+// Large real-time buffers are costly, so highResolution opts into a larger but still safe pixel budget.
+const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const STANDARD_OUTPUT_PIXELS = IS_MOBILE ? 8294400 : 16777216;
+const HIGH_OUTPUT_PIXELS = 33177600; // about 8K UHD (7680 × 4320), not 16K/32K
 const LEVELS = [
   { name: '32K target', w: 32768, h: 18432 },
   { name: '16K target', w: 16384, h: 9216 },
-  { name: '10K', w: 10240, h: 4320 },
+  { name: '10K target', w: 10240, h: 5760 },
   { name: '8K UHD', w: 7680, h: 4320 },
   { name: '5K', w: 5120, h: 2880 },
   { name: '4K', w: 3840, h: 2160 }
 ];
 // Pixel budgets prevent 16K/32K requests from allocating hundreds of MB on phones.
-const MAX_OUTPUT_PIXELS = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-  ? 8294400 : 16777216;
 const DEFAULTS = {
   enabled: true, target: '4k', sharpness: 35,
   brightness: 100, contrast: 100, saturation: 100,
-  autoQuality: true, adaptive: true,
+  autoQuality: true, adaptive: true, highResolution: false,
+  screenModeEnabled: false, screenTarget: '4k',
   smart: false, smartStrength: 60
 };
 
@@ -30,12 +32,37 @@ let current = null;
 const blocked = new WeakSet();
 let lastStatus = '';
 
-const targetIdx = () => ({ '32k': 0, '16k': 1, '10k': 2, '8k': 3, '5k': 4, '4k': 5 }[S.target] ?? 5);
+const targetIdx = () => {
+  const target = S.screenModeEnabled ? S.screenTarget : S.target;
+  return ({ '32k': 0, '16k': 1, '10k': 2, '8k': 3, '5k': 4, '4k': 5 }[target] ?? 5);
+};
 function status(t) {
   if (t !== lastStatus) {
     lastStatus = t;
     try { if (window.AndroidVQ) window.AndroidVQ.status(t); } catch (_) {}
   }
+}
+
+// Screen Boost adds a subtle page-wide clarity profile. The requested resolution target
+// applies to the video renderer only; webpage DOM and the Android display remain at their
+// normal device-controlled raster size.
+function applyScreenBoost() {
+  let style = document.getElementById('__vq-screen-boost-style');
+  if (!S.screenModeEnabled) {
+    if (style) style.remove();
+    return;
+  }
+  if (!style) {
+    style = document.createElement('style');
+    style.id = '__vq-screen-boost-style';
+    (document.head || document.documentElement).appendChild(style);
+  }
+  const factors = { '4k': 1.02, '5k': 1.025, '8k': 1.03, '10k': 1.035, '16k': 1.04 };
+  const factor = factors[S.screenTarget] || factors['4k'];
+  style.textContent =
+    'html { filter: contrast(' + factor + ') saturate(' + factor + ') !important; }' +
+    'html, body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }' +
+    'img, picture, svg, canvas, video { image-rendering: auto; }';
 }
 
 const VS = `
@@ -288,13 +315,21 @@ class Upscaler {
     const maxTexture = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096;
     const maxRenderbuffer = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || maxTexture;
     const vp = gl.getParameter(gl.MAX_VIEWPORT_DIMS) || [maxTexture, maxTexture];
-    const maxSide = Math.max(1, Math.min(maxTexture, maxRenderbuffer, vp[0], vp[1]));
+    // Viewport width and height may differ; avoid an unnecessarily low square cap.
+    const maxWidth = Math.max(1, Math.min(maxTexture, maxRenderbuffer, vp[0]));
+    const maxHeight = Math.max(1, Math.min(maxTexture, maxRenderbuffer, vp[1]));
     const requestedScale = Math.max(1, Math.min(L.w / vw, L.h / vh));
-    let w = Math.round(vw * requestedScale), h = Math.round(vh * requestedScale);
-    const pixelScale = Math.sqrt(MAX_OUTPUT_PIXELS / Math.max(1, w * h));
-    const hardwareScale = Math.min(1, maxSide / Math.max(1, w), maxSide / Math.max(1, h));
+    let w = Math.max(1, Math.round(vw * requestedScale));
+    let h = Math.max(1, Math.round(vh * requestedScale));
+    const pixelBudget = (S.highResolution || S.screenModeEnabled) ? HIGH_OUTPUT_PIXELS : STANDARD_OUTPUT_PIXELS;
+    const pixelScale = Math.sqrt(pixelBudget / Math.max(1, w * h));
+    const hardwareScale = Math.min(1, maxWidth / w, maxHeight / h);
     const clampScale = Math.min(1, pixelScale, hardwareScale);
     this.outputCapped = clampScale < 0.999;
+    const capReasons = [];
+    if (pixelScale < 0.999) capReasons.push(Math.round(pixelBudget / 1000000) + ' MP budget');
+    if (hardwareScale < 0.999) capReasons.push('GPU/WebGL ' + maxWidth + '×' + maxHeight);
+    this.capReason = capReasons.join(' + ');
     if (this.outputCapped) {
       w = Math.max(1, Math.floor(w * clampScale));
       h = Math.max(1, Math.floor(h * clampScale));
@@ -353,7 +388,7 @@ class Upscaler {
     try {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, v);
     } catch (e) {
-      this.fail('This video is cross-origin protected, GPU upscaling not possible here');
+      this.fail('WebGL could not read this video frame (cross-origin/DRM or GPU format limit)');
       return;
     }
     let src = this.tex, smart = false;
@@ -369,8 +404,8 @@ class Upscaler {
     gl.uniform1f(this.u.contrast, S.contrast / 100);
     gl.uniform1f(this.u.sat, S.saturation / 100);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    const capNote = this.outputCapped ? ' · GPU/memory capped' : '';
-    status(`Enhancing ${v.videoWidth}\u00d7${v.videoHeight} → ${this.canvas.width}\u00d7${this.canvas.height} (${LEVELS[levelIdx].name}${capNote})` + (smart ? ' + Smart' : (S.smart && !this.smartOk ? ' (Smart unavailable)' : '')));
+    const capNote = this.outputCapped ? ' · capped: ' + this.capReason : '';
+    status(`Enhancing ${v.videoWidth}\u00d7${v.videoHeight} → buffer ${this.canvas.width}\u00d7${this.canvas.height} (${LEVELS[levelIdx].name}${capNote})` + (smart ? ' + Smart' : (S.smart && !this.smartOk ? ' (Smart unavailable)' : '')));
   }
 
   // Auto-tune: if the machine can't keep up, step the render size down.
@@ -434,9 +469,15 @@ function forceQuality() {
 
 // Called from the native side whenever settings change.
 window.__vqSet = function (s) {
-  const prevTarget = S.target, prevEnabled = S.enabled;
+  const prevTarget = S.target, prevEnabled = S.enabled, prevHighResolution = S.highResolution;
+  const prevScreenMode = S.screenModeEnabled, prevScreenTarget = S.screenTarget;
   S = { ...DEFAULTS, ...s };
-  if (S.target !== prevTarget || S.enabled !== prevEnabled) levelIdx = targetIdx();
+  if (S.target !== prevTarget || S.enabled !== prevEnabled ||
+      S.highResolution !== prevHighResolution ||
+      S.screenModeEnabled !== prevScreenMode || S.screenTarget !== prevScreenTarget) {
+    levelIdx = targetIdx();
+  }
+  applyScreenBoost();
   tick();
 };
 

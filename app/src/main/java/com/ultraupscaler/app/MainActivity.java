@@ -75,6 +75,7 @@ public class MainActivity extends Activity {
     private FrameLayout webContainer;
     private EditText addressBar;
     private TextView statusView;
+    private TextView screenModeLabel;
     private Button backButton;
     private Button forwardButton;
     private Button reloadButton;
@@ -201,6 +202,26 @@ public class MainActivity extends Activity {
         navRow.addView(enhanceButton, new LinearLayout.LayoutParams(dp(72), dp(39)));
         root.addView(navRow, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(50)));
+
+        LinearLayout screenModeRow = new LinearLayout(this);
+        screenModeRow.setOrientation(LinearLayout.HORIZONTAL);
+        screenModeRow.setGravity(Gravity.CENTER_VERTICAL);
+        screenModeRow.setPadding(dp(10), dp(3), dp(10), dp(3));
+        screenModeRow.setBackgroundColor(Color.rgb(24, 24, 38));
+        screenModeLabel = new TextView(this);
+        screenModeLabel.setTextColor(MUTED);
+        screenModeLabel.setTextSize(12);
+        screenModeLabel.setSingleLine(true);
+        screenModeLabel.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        screenModeRow.addView(screenModeLabel, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        Button screenBoostButton = makeButton("Screen Boost", true);
+        screenBoostButton.setTextSize(11);
+        screenModeRow.addView(screenBoostButton, new LinearLayout.LayoutParams(dp(108), dp(34)));
+        screenBoostButton.setOnClickListener(v -> showScreenBoostDialog());
+        root.addView(screenModeRow, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(40)));
+        updateScreenModeUi();
 
         webContainer = new FrameLayout(this);
         webContainer.setBackgroundColor(Color.WHITE);
@@ -601,6 +622,9 @@ public class MainActivity extends Activity {
             json.put("saturation", prefs.getInt("saturation", 100));
             json.put("autoQuality", prefs.getBoolean("autoQuality", true));
             json.put("adaptive", prefs.getBoolean("adaptive", true));
+            json.put("highResolution", prefs.getBoolean("highResolution", false));
+            json.put("screenModeEnabled", prefs.getBoolean("screenModeEnabled", false));
+            json.put("screenTarget", prefs.getString("screenTarget", "4k"));
             json.put("smart", prefs.getBoolean("smart", false));
             json.put("smartStrength", prefs.getInt("smartStrength", 60));
         } catch (Exception ignored) { }
@@ -608,6 +632,104 @@ public class MainActivity extends Activity {
     }
 
     private boolean isAdBlockEnabled() { return prefs.getBoolean("adBlockEnabled", true); }
+
+    private void updateScreenModeUi() {
+        if (screenModeLabel == null) return;
+        boolean enabled = prefs.getBoolean("screenModeEnabled", false);
+        String target = prefs.getString("screenTarget", "4k").toUpperCase(Locale.ROOT);
+        screenModeLabel.setText(enabled
+                ? "Screen Boost ON · " + target + " target · all browser tabs"
+                : "Screen Boost off · browser content only when enabled");
+    }
+
+    private void showScreenBoostDialog() {
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(20), dp(12), dp(20), dp(14));
+        panel.setBackgroundColor(BG);
+        scroll.addView(panel);
+
+        TextView intro = new TextView(this);
+        intro.setText("Screen Boost applies a page-wide clarity profile across websites in every open Ultra Upscale tab. When a video is present, the selected target is also used by the video renderer.");
+        intro.setTextColor(TEXT);
+        intro.setTextSize(14);
+        intro.setPadding(0, 0, 0, dp(10));
+        panel.addView(intro);
+
+        Switch enabledSwitch = new Switch(this);
+        enabledSwitch.setText("Enable Screen Boost");
+        enabledSwitch.setTextColor(TEXT);
+        enabledSwitch.setChecked(prefs.getBoolean("screenModeEnabled", false));
+        addControl(panel, enabledSwitch);
+
+        TextView targetLabel = sectionLabel("Screen/video render target");
+        panel.addView(targetLabel);
+        Spinner targetSpinner = new Spinner(this);
+        String[] targets = {"4K", "5K", "8K UHD", "10K", "16K target (device-limited)"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, targets);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        targetSpinner.setAdapter(adapter);
+        targetSpinner.setSelection(screenTargetIndex(prefs.getString("screenTarget", "4k")));
+        panel.addView(targetSpinner, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
+
+        TextView clarityInfo = new TextView(this);
+        clarityInfo.setText("The page-wide profile tunes rendered website contrast and saturation. The selected 4K–16K target is a requested video render-buffer size, not a promise that non-video webpages or your phone's panel become that resolution.");
+        clarityInfo.setTextColor(MUTED);
+        clarityInfo.setTextSize(12);
+        clarityInfo.setPadding(dp(4), dp(6), dp(4), dp(10));
+        panel.addView(clarityInfo);
+
+        TextView limitation = new TextView(this);
+        limitation.setText("Android does not let an ordinary app change the system display resolution of other apps. Other apps, the home screen, and Android menus will remain unchanged. GPU, WebView, and memory limits still apply.");
+        limitation.setTextColor(MUTED);
+        limitation.setTextSize(12);
+        limitation.setPadding(dp(4), dp(4), dp(4), dp(6));
+        panel.addView(limitation);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Screen Boost Control Panel")
+                .setView(scroll)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Apply", null)
+                .create();
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            prefs.edit()
+                    .putBoolean("screenModeEnabled", enabledSwitch.isChecked())
+                    .putString("screenTarget", screenTargetForIndex(targetSpinner.getSelectedItemPosition()))
+                    .apply();
+            dialog.dismiss();
+            for (BrowserTab tab : tabs) {
+                if (tab.webView != null) injectEnhancement(tab);
+            }
+            updateScreenModeUi();
+            statusView.setText(prefs.getBoolean("screenModeEnabled", false)
+                    ? "Screen Boost enabled · website clarity + selected video target"
+                    : "Screen Boost disabled");
+        }));
+        dialog.show();
+    }
+
+    private int screenTargetIndex(String target) {
+        switch (target) {
+            case "5k": return 1;
+            case "8k": return 2;
+            case "10k": return 3;
+            case "16k": return 4;
+            default: return 0;
+        }
+    }
+
+    private String screenTargetForIndex(int index) {
+        switch (index) {
+            case 1: return "5k";
+            case 2: return "8k";
+            case 3: return "10k";
+            case 4: return "16k";
+            default: return "4k";
+        }
+    }
 
     private void showEnhanceDialog() {
         ScrollView scroll = new ScrollView(this);
@@ -648,6 +770,21 @@ public class MainActivity extends Activity {
         smart.setChecked(prefs.getBoolean("smart", false));
         addControl(panel, smart);
 
+        TextView smartStrengthLabel = sectionLabel("Smart enhancement strength: " + prefs.getInt("smartStrength", 60) + "%");
+        panel.addView(smartStrengthLabel);
+        SeekBar smartStrength = new SeekBar(this);
+        smartStrength.setMax(100);
+        smartStrength.setProgress(prefs.getInt("smartStrength", 60));
+        smartStrength.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                smartStrengthLabel.setText("Smart enhancement strength: " + progress + "%");
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
+        });
+        panel.addView(smartStrength, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(45)));
+
         CheckBox autoQuality = new CheckBox(this);
         autoQuality.setText("Prefer highest available YouTube source quality");
         autoQuality.setTextColor(TEXT);
@@ -659,6 +796,19 @@ public class MainActivity extends Activity {
         adaptive.setTextColor(TEXT);
         adaptive.setChecked(prefs.getBoolean("adaptive", true));
         addControl(panel, adaptive);
+
+        CheckBox highResolution = new CheckBox(this);
+        highResolution.setText("Experimental high-resolution render budget");
+        highResolution.setTextColor(TEXT);
+        highResolution.setChecked(prefs.getBoolean("highResolution", false));
+        addControl(panel, highResolution);
+
+        TextView renderBudgetInfo = new TextView(this);
+        renderBudgetInfo.setText("Raises the render budget toward 8K-class buffers on supported GPUs. Uses substantially more memory and may reduce playback smoothness.");
+        renderBudgetInfo.setTextColor(MUTED);
+        renderBudgetInfo.setTextSize(12);
+        renderBudgetInfo.setPadding(dp(4), 0, dp(4), dp(6));
+        panel.addView(renderBudgetInfo);
 
         TextView sharpLabel = sectionLabel("Sharpness: " + prefs.getInt("sharpness", 35) + "%");
         panel.addView(sharpLabel);
@@ -696,7 +846,7 @@ public class MainActivity extends Activity {
         panel.addView(adInfo);
 
         TextView limitation = new TextView(this);
-        limitation.setText("Important: 16K and 32K are experimental upscale targets. The app does not make a website's source stream native 16K/32K or invent missing detail. GPU, memory, WebView and source-video limits can cap the actual render size; the status line reports the rendered dimensions.");
+        limitation.setText("Important: 16K/32K are requested targets, not guaranteed output sizes. High-resolution mode raises the pixel budget to about 33 million pixels (8K-class) when the GPU allows it. A 16:9 16K frame is about 151 million pixels and 32K is about 604 million pixels; one 4-byte RGBA buffer alone would use roughly 0.6 GB or 2.4 GB. The app therefore keeps hardware and memory safety caps instead of trying to bypass them. Upscaling can smooth and sharpen edges, but cannot recover factual detail absent from the encoded source. DRM and cross-origin restrictions may prevent access to some video frames.");
         limitation.setTextColor(MUTED);
         limitation.setTextSize(12);
         limitation.setPadding(dp(4), dp(4), dp(4), dp(4));
@@ -717,6 +867,8 @@ public class MainActivity extends Activity {
                     .putBoolean("smart", smart.isChecked())
                     .putBoolean("autoQuality", autoQuality.isChecked())
                     .putBoolean("adaptive", adaptive.isChecked())
+                    .putBoolean("highResolution", highResolution.isChecked())
+                    .putInt("smartStrength", smartStrength.getProgress())
                     .putInt("sharpness", sharp.getProgress())
                     .putBoolean("adBlockEnabled", adBlock.isChecked())
                     .apply();
