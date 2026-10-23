@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/high-resolution-rendering
+      - feature/screen-boost-mode
     paths:
       - 'app/**'
       - '*.gradle'
