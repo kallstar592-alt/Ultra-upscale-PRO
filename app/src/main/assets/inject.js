@@ -321,7 +321,7 @@ class Upscaler {
     const requestedScale = Math.max(1, Math.min(L.w / vw, L.h / vh));
     let w = Math.max(1, Math.round(vw * requestedScale));
     let h = Math.max(1, Math.round(vh * requestedScale));
-    const pixelBudget = S.highResolution ? HIGH_OUTPUT_PIXELS : STANDARD_OUTPUT_PIXELS;
+    const pixelBudget = (S.highResolution || S.screenModeEnabled) ? HIGH_OUTPUT_PIXELS : STANDARD_OUTPUT_PIXELS;
     const pixelScale = Math.sqrt(pixelBudget / Math.max(1, w * h));
     const hardwareScale = Math.min(1, maxWidth / w, maxHeight / h);
     const clampScale = Math.min(1, pixelScale, hardwareScale);
