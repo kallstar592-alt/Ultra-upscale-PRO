@@ -1,0 +1,45 @@
+name: Build Windows Control Center
+
+on:
+  push:
+    branches:
+      - feature/windows-screen-boost-panel
+      - main
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/windows-desktop.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish-windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish self-contained Windows app
+        run: dotnet publish desktop/UltraUpscaleControlCenter.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false --output desktop/publish
+
+      - name: Verify executable exists
+        shell: pwsh
+        run: |
+          $exe = "desktop/publish/UltraUpscaleControlCenter.exe"
+          if (!(Test-Path $exe)) { throw "Build output missing: $exe" }
+          Get-Item $exe | Select-Object Name, Length
+
+      - name: Upload portable Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: ultra-upscale-control-center-win-x64
+          path: desktop/publish/UltraUpscaleControlCenter.exe
+          if-no-files-found: error
+          retention-days: 14
