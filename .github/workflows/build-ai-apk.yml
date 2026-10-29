@@ -5,6 +5,7 @@ on:
     branches: [feature/ai-upscaler-preserve-legacy-ui]
     paths:
       - 'MainActivity.java'
+      - 'app/**'
       - 'app/src/main/**'
       - '*.gradle'
       - 'settings.gradle'
