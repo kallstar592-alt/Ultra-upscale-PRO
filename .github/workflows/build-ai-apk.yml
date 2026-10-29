@@ -6,6 +6,8 @@ on:
     paths:
       - 'MainActivity.java'
       - 'app/src/main/**'
+      - '*.gradle'
+      - 'settings.gradle'
       - 'ai-upscaler.js'
       - 'README.md'
       - '.github/workflows/build-ai-apk.yml'
