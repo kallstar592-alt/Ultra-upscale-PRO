@@ -72,6 +72,8 @@ public class MainActivity extends Activity {
 
     private LinearLayout root;
     private LinearLayout tabStrip;
+    private ScrollView controlDropdown;
+    private Button eyeButton;
     private FrameLayout webContainer;
     private EditText addressBar;
     private TextView statusView;
@@ -83,6 +85,7 @@ public class MainActivity extends Activity {
     private BrowserTab activeTab;
     private SharedPreferences prefs;
     private String enhancementScript = "";
+    private String aiUpscalerScript = "";
     private String adBlockScript = "";
     private View customVideoView;
     private WebChromeClient.CustomViewCallback customViewCallback;
@@ -101,6 +104,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         enhancementScript = readAsset("inject.js");
+        aiUpscalerScript = readAsset("ai-upscaler.js");
         adBlockScript = readAsset("adblock.js");
         buildBrowserUi();
         createTab(HOME_URL, true);
@@ -143,6 +147,7 @@ public class MainActivity extends Activity {
         root.setFocusableInTouchMode(true);
         setContentView(root);
 
+        // The tab strip stays visible. Navigation and all enhancement settings are tucked under the eye menu.
         LinearLayout tabsRow = new LinearLayout(this);
         tabsRow.setOrientation(LinearLayout.HORIZONTAL);
         tabsRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -155,21 +160,58 @@ public class MainActivity extends Activity {
         tabStrip.setOrientation(LinearLayout.HORIZONTAL);
         tabsScroll.addView(tabStrip, new HorizontalScrollView.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        tabsRow.addView(tabsScroll, new LinearLayout.LayoutParams(0, dp(43), 1f));
+        tabsRow.addView(tabsScroll, new LinearLayout.LayoutParams(0, dp(42), 1f));
 
         Button addTabButton = makeButton("+", true);
-        addTabButton.setContentDescription("Open a new tab");
-        addTabButton.setMinWidth(dp(42));
-        tabsRow.addView(addTabButton, new LinearLayout.LayoutParams(dp(42), dp(38)));
-        addTabButton.setOnClickListener(v -> createTab("about:blank", true));
+        addTabButton.setTextSize(18);
+        addTabButton.setContentDescription("Open a new DuckDuckGo tab");
+        addTabButton.setMinWidth(dp(38));
+        tabsRow.addView(addTabButton, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        addTabButton.setOnClickListener(v -> createTab(HOME_URL, true));
+
+        eyeButton = makeButton("👁", false);
+        eyeButton.setTextSize(16);
+        eyeButton.setContentDescription("Show browser controls");
+        tabsRow.addView(eyeButton, new LinearLayout.LayoutParams(dp(42), dp(38)));
         root.addView(tabsRow, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(47)));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(45)));
+
+        buildControlDropdown();
+
+        webContainer = new FrameLayout(this);
+        webContainer.setBackgroundColor(Color.WHITE);
+        root.addView(webContainer, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        eyeButton.setOnClickListener(v -> toggleControlDropdown());
+    }
+
+    private void toggleControlDropdown() {
+        if (controlDropdown == null || eyeButton == null) return;
+        boolean show = controlDropdown.getVisibility() != View.VISIBLE;
+        controlDropdown.setVisibility(show ? View.VISIBLE : View.GONE);
+        eyeButton.setContentDescription(show ? "Hide browser controls" : "Show browser controls");
+        eyeButton.setBackground(roundDrawable(show ? ACCENT : PANEL, dp(10)));
+        if (show) updateNavButtons();
+    }
+
+    private void buildControlDropdown() {
+        controlDropdown = new ScrollView(this);
+        controlDropdown.setFillViewport(false);
+        controlDropdown.setBackgroundColor(BG);
+        controlDropdown.setVisibility(View.GONE);
+
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(9), dp(7), dp(9), dp(9));
+        panel.setBackgroundColor(BG);
+        controlDropdown.addView(panel, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout navRow = new LinearLayout(this);
         navRow.setOrientation(LinearLayout.HORIZONTAL);
         navRow.setGravity(Gravity.CENTER_VERTICAL);
-        navRow.setPadding(dp(5), dp(3), dp(5), dp(5));
-        navRow.setBackgroundColor(PANEL);
+        navRow.setPadding(0, 0, 0, dp(6));
 
         backButton = makeButton("‹", false);
         backButton.setContentDescription("Back");
@@ -177,55 +219,37 @@ public class MainActivity extends Activity {
         forwardButton.setContentDescription("Forward");
         reloadButton = makeButton("↻", false);
         reloadButton.setContentDescription("Reload page");
-        navRow.addView(backButton, new LinearLayout.LayoutParams(dp(38), dp(39)));
-        navRow.addView(forwardButton, new LinearLayout.LayoutParams(dp(38), dp(39)));
-        navRow.addView(reloadButton, new LinearLayout.LayoutParams(dp(38), dp(39)));
+        navRow.addView(backButton, new LinearLayout.LayoutParams(dp(32), dp(38)));
+        navRow.addView(forwardButton, new LinearLayout.LayoutParams(dp(32), dp(38)));
+        navRow.addView(reloadButton, new LinearLayout.LayoutParams(dp(32), dp(38)));
 
         addressBar = new EditText(this);
         addressBar.setSingleLine(true);
         addressBar.setTextColor(TEXT);
         addressBar.setHintTextColor(MUTED);
-        addressBar.setHint("Search or enter website");
+        addressBar.setHint("Search DuckDuckGo or enter website");
         addressBar.setTextSize(14);
-        addressBar.setPadding(dp(11), 0, dp(11), 0);
+        addressBar.setPadding(dp(9), 0, dp(9), 0);
         addressBar.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         addressBar.setImeOptions(EditorInfo.IME_ACTION_GO);
         addressBar.setSelectAllOnFocus(true);
-        addressBar.setBackground(roundDrawable(Color.rgb(45, 45, 64), dp(13)));
-        navRow.addView(addressBar, new LinearLayout.LayoutParams(0, dp(39), 1f));
+        addressBar.setBackground(roundDrawable(Color.rgb(45, 45, 64), dp(12)));
+        LinearLayout.LayoutParams addressParams = new LinearLayout.LayoutParams(0, dp(38), 1f);
+        addressParams.setMargins(dp(4), 0, dp(4), 0);
+        navRow.addView(addressBar, addressParams);
 
         Button goButton = makeButton("Go", true);
-        navRow.addView(goButton, new LinearLayout.LayoutParams(dp(47), dp(39)));
-        Button enhanceButton = makeButton("Enhance", true);
-        enhanceButton.setTextSize(11);
-        navRow.addView(enhanceButton, new LinearLayout.LayoutParams(dp(72), dp(39)));
-        root.addView(navRow, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(50)));
-
-        webContainer = new FrameLayout(this);
-        webContainer.setBackgroundColor(Color.WHITE);
-        root.addView(webContainer, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-
-        statusView = new TextView(this);
-        statusView.setSingleLine(true);
-        statusView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        statusView.setTextSize(11);
-        statusView.setTextColor(MUTED);
-        statusView.setPadding(dp(9), dp(4), dp(9), dp(4));
-        statusView.setText("Ready · Ads blocked: " + (isAdBlockEnabled() ? "on" : "off"));
-        statusView.setBackgroundColor(BG);
-        root.addView(statusView, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(27)));
+        navRow.addView(goButton, new LinearLayout.LayoutParams(dp(42), dp(38)));
+        panel.addView(navRow);
 
         backButton.setOnClickListener(v -> {
-            if (activeTab != null && activeTab.webView.canGoBack()) activeTab.webView.goBack();
+            if (activeTab != null && activeTab.webView != null && activeTab.webView.canGoBack()) activeTab.webView.goBack();
         });
         forwardButton.setOnClickListener(v -> {
-            if (activeTab != null && activeTab.webView.canGoForward()) activeTab.webView.goForward();
+            if (activeTab != null && activeTab.webView != null && activeTab.webView.canGoForward()) activeTab.webView.goForward();
         });
         reloadButton.setOnClickListener(v -> {
-            if (activeTab != null) activeTab.webView.reload();
+            if (activeTab != null && activeTab.webView != null) activeTab.webView.reload();
         });
         goButton.setOnClickListener(v -> navigateFromAddressBar());
         addressBar.setOnEditorActionListener((v, actionId, event) -> {
@@ -235,10 +259,133 @@ public class MainActivity extends Activity {
             }
             return false;
         });
-        enhanceButton.setOnClickListener(v -> showEnhanceDialog());
+
+        Switch enhanceSwitch = new Switch(this);
+        enhanceSwitch.setText("Enable video enhancement");
+        enhanceSwitch.setTextColor(TEXT);
+        enhanceSwitch.setChecked(prefs.getBoolean("enhanceEnabled", true));
+        addControl(panel, enhanceSwitch);
+
+        Switch aiUpscalerSwitch = new Switch(this);
+        aiUpscalerSwitch.setText("AI Upscaler · experimental");
+        aiUpscalerSwitch.setTextColor(TEXT);
+        aiUpscalerSwitch.setChecked(prefs.getBoolean("aiUpscaler", false));
+        addControl(panel, aiUpscalerSwitch);
+
+        TextView aiInfo = new TextView(this);
+        aiInfo.setText("AI mode needs internet for the first model download. Speed and video-site restrictions vary by device and site.");
+        aiInfo.setTextColor(MUTED);
+        aiInfo.setTextSize(11);
+        aiInfo.setPadding(dp(3), 0, dp(3), dp(4));
+        panel.addView(aiInfo);
+
+        panel.addView(sectionLabel("Resolution target"));
+        Spinner targetSpinner = new Spinner(this);
+        String[] targets = {"4K", "5K", "8K UHD", "10K", "16K target", "32K target"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, targets) {
+            @Override public View getView(int position, View convertView, ViewGroup parent) {
+                TextView view = (TextView) super.getView(position, convertView, parent);
+                view.setTextColor(TEXT);
+                view.setBackgroundColor(BG);
+                view.setPadding(dp(10), dp(3), dp(10), dp(3));
+                return view;
+            }
+            @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                view.setTextColor(TEXT);
+                view.setBackgroundColor(PANEL);
+                view.setPadding(dp(12), dp(9), dp(12), dp(9));
+                return view;
+            }
+        };
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        targetSpinner.setAdapter(adapter);
+        targetSpinner.setSelection(targetIndex(prefs.getString("target", "4k")));
+        panel.addView(targetSpinner, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(42)));
+
+        CheckBox smart = new CheckBox(this);
+        smart.setText("Smart edge enhancement");
+        smart.setTextColor(TEXT);
+        smart.setChecked(prefs.getBoolean("smart", false));
+        addControl(panel, smart);
+
+        CheckBox autoQuality = new CheckBox(this);
+        autoQuality.setText("Prefer highest available YouTube quality");
+        autoQuality.setTextColor(TEXT);
+        autoQuality.setChecked(prefs.getBoolean("autoQuality", true));
+        addControl(panel, autoQuality);
+
+        CheckBox adaptive = new CheckBox(this);
+        adaptive.setText("Reduce render load if frames drop");
+        adaptive.setTextColor(TEXT);
+        adaptive.setChecked(prefs.getBoolean("adaptive", true));
+        addControl(panel, adaptive);
+
+        SeekBar sharp = addRangeSlider(panel, "Sharpness", 0, 100, prefs.getInt("sharpness", 35));
+        SeekBar brightness = addRangeSlider(panel, "Brightness", 50, 150, prefs.getInt("brightness", 100));
+        SeekBar contrast = addRangeSlider(panel, "Contrast", 50, 150, prefs.getInt("contrast", 100));
+        SeekBar saturation = addRangeSlider(panel, "Saturation", 0, 200, prefs.getInt("saturation", 100));
+
+        View divider = new View(this);
+        divider.setBackgroundColor(Color.rgb(61, 61, 80));
+        LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+        dividerParams.setMargins(0, dp(6), 0, dp(6));
+        panel.addView(divider, dividerParams);
+
+        CheckBox adBlock = new CheckBox(this);
+        adBlock.setText("Enable ad and tracker blocker");
+        adBlock.setTextColor(TEXT);
+        adBlock.setChecked(isAdBlockEnabled());
+        addControl(panel, adBlock);
+
+        statusView = new TextView(this);
+        statusView.setSingleLine(true);
+        statusView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        statusView.setTextSize(11);
+        statusView.setTextColor(MUTED);
+        statusView.setPadding(dp(4), dp(5), dp(4), dp(5));
+        statusView.setText("Ready · DuckDuckGo · Ads blocked: " + (isAdBlockEnabled() ? "on" : "off"));
+        panel.addView(statusView);
+
+        Button applyButton = makeButton("Apply settings", true);
+        LinearLayout.LayoutParams applyParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(40));
+        applyParams.topMargin = dp(5);
+        panel.addView(applyButton, applyParams);
+        applyButton.setOnClickListener(v -> {
+            boolean previousAdBlock = isAdBlockEnabled();
+            String target = targetForIndex(targetSpinner.getSelectedItemPosition());
+            prefs.edit()
+                    .putBoolean("enhanceEnabled", enhanceSwitch.isChecked())
+                    .putBoolean("aiUpscaler", aiUpscalerSwitch.isChecked())
+                    .putString("target", target)
+                    .putBoolean("smart", smart.isChecked())
+                    .putBoolean("autoQuality", autoQuality.isChecked())
+                    .putBoolean("adaptive", adaptive.isChecked())
+                    .putInt("sharpness", sharp.getProgress())
+                    .putInt("brightness", brightness.getProgress() + 50)
+                    .putInt("contrast", contrast.getProgress() + 50)
+                    .putInt("saturation", saturation.getProgress())
+                    .putBoolean("adBlockEnabled", adBlock.isChecked())
+                    .apply();
+            if (previousAdBlock != isAdBlockEnabled()) {
+                for (BrowserTab tab : new ArrayList<>(tabs)) {
+                    if (tab.webView != null && tab.url != null && !"about:blank".equals(tab.url)) tab.webView.reload();
+                    else if (tab.webView != null) injectEnhancement(tab);
+                }
+            } else {
+                for (BrowserTab tab : tabs) injectEnhancement(tab);
+            }
+            statusView.setText("Applied · DuckDuckGo · Ads/tracker blocking " + (isAdBlockEnabled() ? "on" : "off"));
+        });
+
+        root.addView(controlDropdown, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(330)));
     }
 
-    private Button makeButton(String label, boolean prominent) {
+        private Button makeButton(String label, boolean prominent) {
         Button button = new Button(this);
         button.setText(label);
         button.setTextSize(14);
@@ -587,13 +734,22 @@ public class MainActivity extends Activity {
         if (isAdBlockEnabled() && !adBlockScript.isEmpty()) js.append(adBlockScript).append('\n');
         if (!enhancementScript.isEmpty()) js.append(enhancementScript).append('\n');
         js.append("if (window.__vqSet) window.__vqSet(").append(settingsJson()).append(");");
+        try {
+            JSONObject aiConfig = new JSONObject();
+            aiConfig.put("enabled", prefs.getBoolean("aiUpscaler", false));
+            aiConfig.put("target", prefs.getString("target", "4k").toUpperCase(Locale.ROOT));
+            js.append("\nwindow.__ULTRA_AI_CONFIG = ").append(aiConfig.toString()).append(";\n");
+        } catch (Exception ignored) { }
+        if (!aiUpscalerScript.isEmpty()) js.append(aiUpscalerScript).append('\n');
         tab.webView.evaluateJavascript(js.toString(), null);
     }
 
     private String settingsJson() {
         JSONObject json = new JSONObject();
         try {
-            json.put("enabled", prefs.getBoolean("enhanceEnabled", true));
+            // Avoid stacking the legacy WebGL overlay beneath the AI-generated video overlay.
+            json.put("enabled", prefs.getBoolean("enhanceEnabled", true)
+                    && !prefs.getBoolean("aiUpscaler", false));
             json.put("target", prefs.getString("target", "4k"));
             json.put("sharpness", prefs.getInt("sharpness", 35));
             json.put("brightness", prefs.getInt("brightness", 100));
@@ -630,11 +786,39 @@ public class MainActivity extends Activity {
         enhanceSwitch.setChecked(prefs.getBoolean("enhanceEnabled", true));
         addControl(panel, enhanceSwitch);
 
+        Switch aiUpscalerSwitch = new Switch(this);
+        aiUpscalerSwitch.setText("AI Upscaler · experimental x4 model");
+        aiUpscalerSwitch.setTextColor(TEXT);
+        aiUpscalerSwitch.setChecked(prefs.getBoolean("aiUpscaler", false));
+        addControl(panel, aiUpscalerSwitch);
+
+        TextView aiInfo = new TextView(this);
+        aiInfo.setText("AI mode uses an experimental x4 super-resolution model. First use downloads the model/runtime. It can be slow, and protected or cross-origin video may block frame access. The standard renderer is paused while AI mode is on to prevent overlapping video layers.");
+        aiInfo.setTextColor(MUTED);
+        aiInfo.setTextSize(12);
+        aiInfo.setPadding(dp(4), 0, dp(4), dp(8));
+        panel.addView(aiInfo);
+
         TextView targetLabel = sectionLabel("Enhancement target");
         panel.addView(targetLabel);
         Spinner targetSpinner = new Spinner(this);
         String[] targets = {"4K", "5K", "8K UHD", "10K", "16K target (GPU-limited)", "32K target (GPU-limited)"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, targets);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, targets) {
+            @Override public View getView(int position, View convertView, ViewGroup parent) {
+                TextView view = (TextView) super.getView(position, convertView, parent);
+                view.setTextColor(TEXT);
+                view.setBackgroundColor(BG);
+                view.setPadding(dp(10), dp(4), dp(10), dp(4));
+                return view;
+            }
+            @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                view.setTextColor(TEXT);
+                view.setBackgroundColor(PANEL);
+                view.setPadding(dp(12), dp(10), dp(12), dp(10));
+                return view;
+            }
+        };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         targetSpinner.setAdapter(adapter);
         String currentTarget = prefs.getString("target", "4k");
@@ -660,22 +844,12 @@ public class MainActivity extends Activity {
         adaptive.setChecked(prefs.getBoolean("adaptive", true));
         addControl(panel, adaptive);
 
-        TextView sharpLabel = sectionLabel("Sharpness: " + prefs.getInt("sharpness", 35) + "%");
-        panel.addView(sharpLabel);
-        SeekBar sharp = new SeekBar(this);
-        sharp.setMax(100);
-        sharp.setProgress(prefs.getInt("sharpness", 35));
-        sharp.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                sharpLabel.setText("Sharpness: " + progress + "%");
-            }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
-            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
-        });
-        panel.addView(sharp, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(45)));
+        SeekBar sharp = addRangeSlider(panel, "Sharpness", 0, 100, prefs.getInt("sharpness", 35));
+        SeekBar brightness = addRangeSlider(panel, "Brightness", 50, 150, prefs.getInt("brightness", 100));
+        SeekBar contrast = addRangeSlider(panel, "Contrast", 50, 150, prefs.getInt("contrast", 100));
+        SeekBar saturation = addRangeSlider(panel, "Saturation", 0, 200, prefs.getInt("saturation", 100));
 
-        View divider = new View(this);
+                View divider = new View(this);
         divider.setBackgroundColor(Color.rgb(61, 61, 80));
         LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
@@ -713,11 +887,15 @@ public class MainActivity extends Activity {
             String target = targetForIndex(targetSpinner.getSelectedItemPosition());
             prefs.edit()
                     .putBoolean("enhanceEnabled", enhanceSwitch.isChecked())
+                    .putBoolean("aiUpscaler", aiUpscalerSwitch.isChecked())
                     .putString("target", target)
                     .putBoolean("smart", smart.isChecked())
                     .putBoolean("autoQuality", autoQuality.isChecked())
                     .putBoolean("adaptive", adaptive.isChecked())
                     .putInt("sharpness", sharp.getProgress())
+                    .putInt("brightness", brightness.getProgress() + 50)
+                    .putInt("contrast", contrast.getProgress() + 50)
+                    .putInt("saturation", saturation.getProgress())
                     .putBoolean("adBlockEnabled", adBlock.isChecked())
                     .apply();
             dialog.dismiss();
@@ -733,6 +911,26 @@ public class MainActivity extends Activity {
             statusView.setText("Settings applied · Ads/tracker blocking " + (isAdBlockEnabled() ? "on" : "off"));
         }));
         dialog.show();
+    }
+
+    private SeekBar addRangeSlider(LinearLayout panel, String name, int min, int max, int initial) {
+        TextView label = sectionLabel(name + ": " + initial + "%");
+        panel.addView(label);
+        SeekBar seek = new SeekBar(this);
+        seek.setMax(max - min);
+        seek.setProgress(Math.max(0, Math.min(max - min, initial - min)));
+        seek.setProgressTintList(android.content.res.ColorStateList.valueOf(ACCENT));
+        seek.setThumbTintList(android.content.res.ColorStateList.valueOf(ACCENT));
+        seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                label.setText(name + ": " + (progress + min) + "%");
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
+        });
+        panel.addView(seek, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(45)));
+        return seek;
     }
 
     private TextView sectionLabel(String text) {

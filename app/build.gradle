@@ -7,11 +7,11 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.ultraupscaler.app'
+        applicationId 'com.ultraupscaler.app.ai'
         minSdk 23
         targetSdk 34
-        versionCode 2
-        versionName '1.1-enhanced'
+        versionCode 3
+        versionName '1.2-ai-experimental'
     }
 
     compileOptions {

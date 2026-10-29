@@ -4,11 +4,13 @@ This is an editable Android Studio project reconstructed from the compiled APK s
 
 ## Features
 
-- **Browser-style tabs:** open, switch between, and close tabs. Each tab has its own WebView and navigation history. User-initiated pop-up windows can open as tabs.
-- **Enhance panel:** enable or disable video enhancement, adjust sharpness, and choose 4K, 8K, experimental 16K, or experimental 32K render targets.
+- **Mobile-first compact layout:** open/switch/close tabs stay visible; browser navigation and all enhancement controls are hidden in an eye-button dropdown to maximize page space.
+- **Legacy Enhance panel preserved:** browser tabs, address/navigation bar, ad blocker, Smart edge enhancement, adaptive render load, and target selection stay in the original layout.
+- **AI Upscaler (experimental):** optional Real-ESRGAN x4 ONNX mode is added to the existing Enhance dialog. While AI mode is on, the standard WebGL overlay is paused to prevent stacked video layers.
+- **Video tuning:** sharpness, brightness, contrast, and saturation controls share the same dark themed settings dialog. Resolution options remain readable on the dark background.
 - **Adaptive video rendering:** WebGL renderer checks hardware limits and a conservative pixel budget before sizing its canvas.
 - **Basic ad blocking:** blocks requests matching a list of common advertising/tracking domains and hides common ad containers.
-- **Browser navigation:** address/search bar, back, forward, reload, and external app hand-off for non-web links.
+- **DuckDuckGo:** starts new tabs on DuckDuckGo and sends non-URL text searches to DuckDuckGo.
 
 ## Build
 
@@ -18,7 +20,7 @@ This is an editable Android Studio project reconstructed from the compiled APK s
 4. Select **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
 5. If the build succeeds, the debug APK is normally under `app/build/outputs/apk/debug/app-debug.apk`.
 
-This environment does not have the Android SDK/Gradle build toolchain, so I could not compile or runtime-test the APK. Build and test on a device before relying on it.
+The `AI Upscaler` downloads its model and ONNX Runtime files from public CDNs on first use. Video processing is attempted locally, but model downloads require internet. CORS/DRM, site protections, lack of WebGPU, or device memory/performance can prevent AI upscaling. The input is intentionally downscaled before inference to limit memory use; the 4K–32K labels are target preferences, not true native output sizes.
 
 ## Important limits
 
@@ -27,6 +29,7 @@ A 16K/32K setting is a best-effort render target, not a promise of native 16K/32
 ## Main source files
 
 - `app/src/main/java/com/ultraupscaler/app/MainActivity.java` — browser UI, tabs, navigation, Enhance settings, network filtering, and JS bridge.
-- `app/src/main/assets/inject.js` — WebGL video rendering and resolution target caps.
+- `app/src/main/assets/inject.js` — WebGL video rendering and GPU-safe resolution target caps.
+- `app/src/main/assets/ai-upscaler.js` — experimental on-device x4 super-resolution mode using ONNX Runtime Web.
 - `app/src/main/assets/adblock.js` — cosmetic ad-element hiding.
 - `app/src/main/AndroidManifest.xml` — app entry point and permissions.

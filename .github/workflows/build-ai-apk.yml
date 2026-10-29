@@ -1,0 +1,53 @@
+name: Build Ultra Upscale PRO AI APK
+
+on:
+  push:
+    branches: [feature/ai-upscaler-preserve-legacy-ui]
+    paths:
+      - 'MainActivity.java'
+      - 'app/**'
+      - 'app/src/main/**'
+      - '*.gradle'
+      - 'settings.gradle'
+      - 'ai-upscaler.js'
+      - 'README.md'
+      - '.github/workflows/build-ai-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK 35
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" --licenses
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Validate injected scripts
+        run: |
+          node --check app/src/main/assets/inject.js
+          node --check app/src/main/assets/ai-upscaler.js
+          node --check app/src/main/assets/adblock.js
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Prepare APK
+        run: |
+          mkdir -p build-output
+          cp app/build/outputs/apk/debug/app-debug.apk build-output/Ultra-Upscale-PRO-AI.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ultra-Upscale-PRO-AI-apk
+          path: build-output/Ultra-Upscale-PRO-AI.apk
+          if-no-files-found: error
