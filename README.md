@@ -4,13 +4,13 @@ This is an editable Android Studio project reconstructed from the compiled APK s
 
 ## Features
 
-- **Browser-style tabs:** open, switch between, and close tabs. Each tab has its own WebView and navigation history. User-initiated pop-up windows can open as tabs.
+- **Mobile-first compact layout:** open/switch/close tabs stay visible; browser navigation and all enhancement controls are hidden in an eye-button dropdown to maximize page space.
 - **Legacy Enhance panel preserved:** browser tabs, address/navigation bar, ad blocker, Smart edge enhancement, adaptive render load, and target selection stay in the original layout.
 - **AI Upscaler (experimental):** optional Real-ESRGAN x4 ONNX mode is added to the existing Enhance dialog. While AI mode is on, the standard WebGL overlay is paused to prevent stacked video layers.
 - **Video tuning:** sharpness, brightness, contrast, and saturation controls share the same dark themed settings dialog. Resolution options remain readable on the dark background.
 - **Adaptive video rendering:** WebGL renderer checks hardware limits and a conservative pixel budget before sizing its canvas.
 - **Basic ad blocking:** blocks requests matching a list of common advertising/tracking domains and hides common ad containers.
-- **Browser navigation:** address/search bar, back, forward, reload, and external app hand-off for non-web links.
+- **DuckDuckGo:** starts new tabs on DuckDuckGo and sends non-URL text searches to DuckDuckGo.
 
 ## Build
 
