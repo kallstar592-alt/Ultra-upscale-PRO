@@ -83,6 +83,7 @@ public class MainActivity extends Activity {
     private BrowserTab activeTab;
     private SharedPreferences prefs;
     private String enhancementScript = "";
+    private String aiUpscalerScript = "";
     private String adBlockScript = "";
     private View customVideoView;
     private WebChromeClient.CustomViewCallback customViewCallback;
@@ -101,6 +102,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         enhancementScript = readAsset("inject.js");
+        aiUpscalerScript = readAsset("ai-upscaler.js");
         adBlockScript = readAsset("adblock.js");
         buildBrowserUi();
         createTab(HOME_URL, true);
@@ -587,13 +589,22 @@ public class MainActivity extends Activity {
         if (isAdBlockEnabled() && !adBlockScript.isEmpty()) js.append(adBlockScript).append('\n');
         if (!enhancementScript.isEmpty()) js.append(enhancementScript).append('\n');
         js.append("if (window.__vqSet) window.__vqSet(").append(settingsJson()).append(");");
+        try {
+            JSONObject aiConfig = new JSONObject();
+            aiConfig.put("enabled", prefs.getBoolean("aiUpscaler", false));
+            aiConfig.put("target", prefs.getString("target", "4k").toUpperCase(Locale.ROOT));
+            js.append("\nwindow.__ULTRA_AI_CONFIG = ").append(aiConfig.toString()).append(";\n");
+        } catch (Exception ignored) { }
+        if (!aiUpscalerScript.isEmpty()) js.append(aiUpscalerScript).append('\n');
         tab.webView.evaluateJavascript(js.toString(), null);
     }
 
     private String settingsJson() {
         JSONObject json = new JSONObject();
         try {
-            json.put("enabled", prefs.getBoolean("enhanceEnabled", true));
+            // Avoid stacking the legacy WebGL overlay beneath the AI-generated video overlay.
+            json.put("enabled", prefs.getBoolean("enhanceEnabled", true)
+                    && !prefs.getBoolean("aiUpscaler", false));
             json.put("target", prefs.getString("target", "4k"));
             json.put("sharpness", prefs.getInt("sharpness", 35));
             json.put("brightness", prefs.getInt("brightness", 100));
@@ -630,11 +641,39 @@ public class MainActivity extends Activity {
         enhanceSwitch.setChecked(prefs.getBoolean("enhanceEnabled", true));
         addControl(panel, enhanceSwitch);
 
+        Switch aiUpscalerSwitch = new Switch(this);
+        aiUpscalerSwitch.setText("AI Upscaler · experimental x4 model");
+        aiUpscalerSwitch.setTextColor(TEXT);
+        aiUpscalerSwitch.setChecked(prefs.getBoolean("aiUpscaler", false));
+        addControl(panel, aiUpscalerSwitch);
+
+        TextView aiInfo = new TextView(this);
+        aiInfo.setText("AI mode uses an experimental x4 super-resolution model. First use downloads the model/runtime. It can be slow, and protected or cross-origin video may block frame access. The standard renderer is paused while AI mode is on to prevent overlapping video layers.");
+        aiInfo.setTextColor(MUTED);
+        aiInfo.setTextSize(12);
+        aiInfo.setPadding(dp(4), 0, dp(4), dp(8));
+        panel.addView(aiInfo);
+
         TextView targetLabel = sectionLabel("Enhancement target");
         panel.addView(targetLabel);
         Spinner targetSpinner = new Spinner(this);
         String[] targets = {"4K", "5K", "8K UHD", "10K", "16K target (GPU-limited)", "32K target (GPU-limited)"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, targets);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, targets) {
+            @Override public View getView(int position, View convertView, ViewGroup parent) {
+                TextView view = (TextView) super.getView(position, convertView, parent);
+                view.setTextColor(TEXT);
+                view.setBackgroundColor(BG);
+                view.setPadding(dp(10), dp(4), dp(10), dp(4));
+                return view;
+            }
+            @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                view.setTextColor(TEXT);
+                view.setBackgroundColor(PANEL);
+                view.setPadding(dp(12), dp(10), dp(12), dp(10));
+                return view;
+            }
+        };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         targetSpinner.setAdapter(adapter);
         String currentTarget = prefs.getString("target", "4k");
@@ -660,22 +699,12 @@ public class MainActivity extends Activity {
         adaptive.setChecked(prefs.getBoolean("adaptive", true));
         addControl(panel, adaptive);
 
-        TextView sharpLabel = sectionLabel("Sharpness: " + prefs.getInt("sharpness", 35) + "%");
-        panel.addView(sharpLabel);
-        SeekBar sharp = new SeekBar(this);
-        sharp.setMax(100);
-        sharp.setProgress(prefs.getInt("sharpness", 35));
-        sharp.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                sharpLabel.setText("Sharpness: " + progress + "%");
-            }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
-            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
-        });
-        panel.addView(sharp, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(45)));
+        SeekBar sharp = addRangeSlider(panel, "Sharpness", 0, 100, prefs.getInt("sharpness", 35));
+        SeekBar brightness = addRangeSlider(panel, "Brightness", 50, 150, prefs.getInt("brightness", 100));
+        SeekBar contrast = addRangeSlider(panel, "Contrast", 50, 150, prefs.getInt("contrast", 100));
+        SeekBar saturation = addRangeSlider(panel, "Saturation", 0, 200, prefs.getInt("saturation", 100));
 
-        View divider = new View(this);
+                View divider = new View(this);
         divider.setBackgroundColor(Color.rgb(61, 61, 80));
         LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
@@ -713,11 +742,15 @@ public class MainActivity extends Activity {
             String target = targetForIndex(targetSpinner.getSelectedItemPosition());
             prefs.edit()
                     .putBoolean("enhanceEnabled", enhanceSwitch.isChecked())
+                    .putBoolean("aiUpscaler", aiUpscalerSwitch.isChecked())
                     .putString("target", target)
                     .putBoolean("smart", smart.isChecked())
                     .putBoolean("autoQuality", autoQuality.isChecked())
                     .putBoolean("adaptive", adaptive.isChecked())
                     .putInt("sharpness", sharp.getProgress())
+                    .putInt("brightness", brightness.getProgress() + 50)
+                    .putInt("contrast", contrast.getProgress() + 50)
+                    .putInt("saturation", saturation.getProgress())
                     .putBoolean("adBlockEnabled", adBlock.isChecked())
                     .apply();
             dialog.dismiss();
@@ -733,6 +766,26 @@ public class MainActivity extends Activity {
             statusView.setText("Settings applied · Ads/tracker blocking " + (isAdBlockEnabled() ? "on" : "off"));
         }));
         dialog.show();
+    }
+
+    private SeekBar addRangeSlider(LinearLayout panel, String name, int min, int max, int initial) {
+        TextView label = sectionLabel(name + ": " + initial + "%");
+        panel.addView(label);
+        SeekBar seek = new SeekBar(this);
+        seek.setMax(max - min);
+        seek.setProgress(Math.max(0, Math.min(max - min, initial - min)));
+        seek.setProgressTintList(android.content.res.ColorStateList.valueOf(ACCENT));
+        seek.setThumbTintList(android.content.res.ColorStateList.valueOf(ACCENT));
+        seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                label.setText(name + ": " + (progress + min) + "%");
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
+        });
+        panel.addView(seek, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(45)));
+        return seek;
     }
 
     private TextView sectionLabel(String text) {
